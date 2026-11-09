@@ -47,7 +47,9 @@ The board will contain the app brief, MVP, user flow, wireframes, and moodboard.
 
 ## Project Status
 
-In development.
+In development. The app currently includes the Wanderly light/dark theme and four tabs: Map (Home), Trips, Diary, and Profile. These screens use empty states; the map, authentication, data storage, and travel statistics are not connected yet.
+
+Routes live in `src/app/(tabs)`. Shared screen, icon, and empty-state components live in `src/components/ui`, and theme tokens live in `src/constants/theme.ts`.
 
 ## Author
 

@@ -11,7 +11,8 @@ export type ThemedTextProps = TextProps & {
 export function ThemedText({ style, type = 'default', themeColor, ...rest }: ThemedTextProps) {
   const theme = useTheme();
 
-  return <Text style={[{ color: theme[themeColor ?? 'text'] }, styles[type], style]} {...rest} />;
+  const color = themeColor ?? (type === 'linkPrimary' ? 'primary' : 'text');
+  return <Text style={[styles[type], { color: theme[color] }, style]} {...rest} />;
 }
 
 const styles = StyleSheet.create({
@@ -31,9 +32,9 @@ const styles = StyleSheet.create({
     fontWeight: 500,
   },
   title: {
-    fontSize: 48,
+    fontSize: 34,
     fontWeight: 600,
-    lineHeight: 52,
+    lineHeight: 42,
   },
   subtitle: {
     fontSize: 32,
@@ -47,7 +48,6 @@ const styles = StyleSheet.create({
   linkPrimary: {
     lineHeight: 30,
     fontSize: 14,
-    color: '#3c87f7',
   },
   code: {
     fontFamily: Fonts.mono,
