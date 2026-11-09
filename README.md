@@ -41,7 +41,7 @@ npx expo start
 
 ## Design and Planning
 
-Miro Board: Coming soon
+Miro Board: (https://miro.com/app/board/uXjVEPjMFTQ=/?share_link_id=653986321950)
 
 The board will contain the app brief, MVP, user flow, wireframes, and moodboard.
 
