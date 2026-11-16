@@ -21,6 +21,7 @@ Wanderly helps users organize their travels, explore destinations, track expense
 - React Native
 - Expo
 - TypeScript
+- Node.js + Express (separate wanderly-backend repository)
 - Supabase
 - React Native Maps
 - Expo ImagePicker
@@ -47,7 +48,9 @@ The board will contain the app brief, MVP, user flow, wireframes, and moodboard.
 
 ## Project Status
 
-In development. The app currently includes the Wanderly light/dark theme and four tabs: Map (Home), Trips, Diary, and Profile. These screens use empty states; the map, authentication, data storage, and travel statistics are not connected yet.
+This repository is the Expo frontend. The separate `wanderly-backend` repository is a Node.js + Express API that validates Supabase access tokens and handles profile, trip, and diary database operations. Supabase provides Auth and PostgreSQL. See [connection setup](supabase/README.md) to run both projects.
+
+The app includes light/dark themes, email/password login and signup, and four protected tabs: Map, Trips, Diary, and Profile. Profile shows the signed-in account and supports sign-out. Trip, diary, and map screens still use placeholders; their forms and travel features remain to be built. Authentication stays connected directly to Supabase; all existing data service functions now call the Node API.
 
 Routes live in `src/app/(tabs)`. Shared screen, icon, and empty-state components live in `src/components/ui`, and theme tokens live in `src/constants/theme.ts`.
 

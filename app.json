@@ -26,6 +26,12 @@
     "plugins": [
       "expo-router",
       [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Wanderly uses your location to show where you are on the map and how much of your current continent you've explored."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#FFFBF5",

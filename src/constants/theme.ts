@@ -18,6 +18,8 @@ export const Colors = {
     onPrimary: '#FFFFFF',
     border: '#E9E0EE',
     accent: '#F1E9FF',
+    danger: '#B42336',
+    pinWishlist: '#E8956B',
   },
   dark: {
     text: '#FFF7FF',
@@ -29,6 +31,8 @@ export const Colors = {
     onPrimary: '#27113E',
     border: '#493552',
     accent: '#352146',
+    danger: '#FFB4BE',
+    pinWishlist: '#F4B38E',
   },
 } as const;
 
