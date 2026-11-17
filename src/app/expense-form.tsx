@@ -7,7 +7,8 @@ import { ChipGroup } from '@/components/ui/chip';
 import { FormSheet } from '@/components/ui/form-sheet';
 import { TextField } from '@/components/ui/text-field';
 import { Spacing } from '@/constants/theme';
-import { EXPENSE_CATEGORIES, sampleActions, useSampleData } from '@/data/sample-store';
+import { EXPENSE_CATEGORIES, sampleActions } from '@/data/sample-store';
+import { useTravelData } from '@/data/travel-store';
 import { parseISODate, todayISO } from '@/utils/format';
 
 type Category = (typeof EXPENSE_CATEGORIES)[number];
@@ -15,7 +16,7 @@ const CATEGORY_OPTIONS = EXPENSE_CATEGORIES.map((value) => ({ value, label: valu
 
 export default function ExpenseFormScreen() {
   const { tripId } = useLocalSearchParams<{ tripId: string }>();
-  const trip = useSampleData().trips.find((t) => t.id === tripId);
+  const trip = useTravelData().trips.find((t) => t.id === tripId);
 
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
@@ -42,7 +43,7 @@ export default function ExpenseFormScreen() {
 
   return (
     <FormSheet title="New expense" saveLabel="Add" onSave={save} error={trip ? null : 'This trip no longer exists.'}>
-      {trip ? <ThemedText themeColor="textSecondary">For {trip.title}</ThemedText> : null}
+      {trip ? <ThemedText themeColor="textSecondary">For {trip.title} · sample only, not saved yet</ThemedText> : null}
       <TextField label={`Amount (${trip?.currency ?? 'EUR'})`} value={amount} onChangeText={setAmount} placeholder="0.00" keyboardType="decimal-pad" error={errors.amount} autoFocus />
       <TextField label="Description" value={title} onChangeText={setTitle} placeholder="Dinner by the harbour" error={errors.title} maxLength={150} />
       <View style={{ gap: Spacing.two }}>

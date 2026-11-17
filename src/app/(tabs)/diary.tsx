@@ -7,15 +7,15 @@ import { ActionButton } from '@/components/ui/action-button';
 import { ChipGroup } from '@/components/ui/chip';
 import { EmptyState } from '@/components/ui/empty-state';
 import { IconButton } from '@/components/ui/icon-button';
-import { SampleBadge } from '@/components/ui/sample-badge';
+import { DataStatus } from '@/components/ui/data-status';
 import { Screen } from '@/components/ui/screen';
 import { SectionHeader } from '@/components/ui/section-header';
 import { Spacing } from '@/constants/theme';
-import { useSampleData } from '@/data/sample-store';
+import { useTravelData } from '@/data/travel-store';
 import { formatDate } from '@/utils/format';
 
 export default function DiaryScreen() {
-  const { entries, trips } = useSampleData();
+  const { entries, trips, status, error, isLoading, reload } = useTravelData();
   const [tripFilter, setTripFilter] = useState('all');
 
   const tripTitles = new Map(trips.map((t) => [t.id, t.title]));
@@ -40,8 +40,10 @@ export default function DiaryScreen() {
     <Screen
       eyebrow="Travel diary"
       title="Memories"
-      action={<IconButton icon="add" label="Write a new entry" variant="primary" onPress={write} />}>
-      <SampleBadge />
+      action={<IconButton icon="add" label="Write a new entry" variant="primary" onPress={write} />}
+      onRefresh={reload}
+      refreshing={status === 'loading' && !isLoading}>
+      <DataStatus isLoading={isLoading} error={error} onRetry={reload} />
       {entries.length > 0 ? <ChipGroup label="Filter by trip" options={filterOptions} value={tripFilter} onChange={setTripFilter} /> : null}
 
       {[...months].map(([month, items]) => (
@@ -51,7 +53,7 @@ export default function DiaryScreen() {
         </View>
       ))}
 
-      {visible.length === 0 ? (
+      {visible.length === 0 && !isLoading && !error ? (
         <>
           <EmptyState icon="diary" title="Your story starts here" description="Capture the moments, feelings and little details you never want to forget." />
           {trips.length > 0

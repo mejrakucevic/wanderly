@@ -4,21 +4,29 @@ import { StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { TripCard } from '@/components/trips/trip-card';
 import { AppIcon } from '@/components/ui/app-icon';
+import { DataStatus } from '@/components/ui/data-status';
 import { EmptyState } from '@/components/ui/empty-state';
 import { IconButton } from '@/components/ui/icon-button';
 import { Screen } from '@/components/ui/screen';
 import { Radius, Spacing } from '@/constants/theme';
-import { useSampleData } from '@/data/sample-store';
+import { useTravelData } from '@/data/travel-store';
 import { useTheme } from '@/hooks/use-theme';
 import { formatDate } from '@/utils/format';
 
 export default function EntryDetailScreen() {
   const theme = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { entries, trips } = useSampleData();
+  const { entries, trips, isLoading, error, reload } = useTravelData();
   const entry = entries.find((e) => e.id === id);
   const trip = trips.find((t) => t.id === entry?.trip_id);
 
+  if (!entry && (isLoading || error)) {
+    return (
+      <Screen showBack title="Diary entry">
+        <DataStatus isLoading={isLoading} error={error} onRetry={reload} />
+      </Screen>
+    );
+  }
   if (!entry) {
     return (
       <Screen showBack title="Entry not found">

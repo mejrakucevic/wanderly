@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -12,8 +13,10 @@ import { IconButton } from '@/components/ui/icon-button';
 import { SampleBadge } from '@/components/ui/sample-badge';
 import { Screen } from '@/components/ui/screen';
 import { SectionHeader } from '@/components/ui/section-header';
+import { countryFlag } from '@/constants/countries';
 import { Radius, Spacing } from '@/constants/theme';
 import { useSampleData } from '@/data/sample-store';
+import { useTravelData } from '@/data/travel-store';
 import { useCurrentCountry } from '@/hooks/use-current-country';
 import { useTheme } from '@/hooks/use-theme';
 import type { Location } from '@/types/models';
@@ -28,14 +31,16 @@ const FILTERS = [
 
 export default function MapScreen() {
   const theme = useTheme();
-  const { locations, trips } = useSampleData();
+  const { locations } = useSampleData();
+  const { trips, countries } = useTravelData();
   const [filter, setFilter] = useState<Filter>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const places = locations.filter((l) => filter === 'all' || l.status === filter);
   const selected = places.find((l) => l.id === selectedId) ?? null;
   const visited = locations.filter((l) => l.status === 'visited');
-  const visitedCodes = [...new Set(visited.flatMap((l) => (l.country_code ? [l.country_code] : [])))];
+  const visitedCodes = countries.filter((c) => c.status === 'visited').map((c) => c.country_code);
+  const wishlistCount = countries.length - visitedCodes.length;
   const current = useCurrentCountry();
   const nextTrip = trips
     .filter((t) => tripPhase(t) !== 'past')
@@ -58,6 +63,29 @@ export default function MapScreen() {
           </Card>
         ) : null}
       </PlacesMap>
+
+      {/* Right under the map: your countries at a glance, and a + to add more. */}
+      <View style={styles.countries}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`My countries: been to ${visitedCodes.length}, want to go to ${wishlistCount}`}
+          accessibilityHint="Opens your list of countries"
+          onPress={() => router.push('/countries')}
+          style={({ pressed }) => [styles.countriesInfo, pressed && { opacity: 0.7 }]}>
+          {visitedCodes.length > 0 ? (
+            <ThemedText style={styles.flags} numberOfLines={1}>
+              {visitedCodes.slice(0, 6).map(countryFlag).join(' ')}
+              {visitedCodes.length > 6 ? <ThemedText type="small" themeColor="textSecondary"> +{visitedCodes.length - 6}</ThemedText> : null}
+            </ThemedText>
+          ) : null}
+          <ThemedText type="small" themeColor="textSecondary">
+            {countries.length === 0
+              ? 'Add the countries you’ve visited or dream of'
+              : `Been to ${visitedCodes.length} · Want to go to ${wishlistCount}`}
+          </ThemedText>
+        </Pressable>
+        <IconButton icon="add" label="Add a country" variant="primary" onPress={() => router.push('/country-picker')} />
+      </View>
 
       <ContinentProgressCard visitedCodes={visitedCodes} current={current} />
 
@@ -129,4 +157,7 @@ const styles = StyleSheet.create({
   placeName: { fontWeight: '700' },
   notes: { marginTop: Spacing.one },
   flex: { flex: 1 },
+  countries: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, marginTop: -Spacing.two },
+  countriesInfo: { flex: 1, gap: Spacing.half, minHeight: 44, justifyContent: 'center' },
+  flags: { fontSize: 22, lineHeight: 30 },
 });

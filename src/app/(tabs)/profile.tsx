@@ -1,18 +1,21 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { EmptyState } from '@/components/ui/empty-state';
 import { Screen } from '@/components/ui/screen';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { ActionButton } from '@/components/ui/action-button';
+import { useTravelData } from '@/data/travel-store';
+import { tripPhase } from '@/utils/format';
 import { useAuth } from '@/providers/auth-provider';
 import { signOut } from '@/services/auth';
 
 export default function ProfileScreen() {
   const theme = useTheme();
   const { session } = useAuth();
+  const { countries, trips, isLoading } = useTravelData();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,14 +40,18 @@ export default function ProfileScreen() {
         <ActionButton secondary label={isSigningOut ? 'Signing out…' : 'Sign out'} loading={isSigningOut} onPress={() => void handleSignOut()} />
       </View>
       <View style={styles.stats}>
-        {['Countries visited', 'Trips completed'].map((label) => (
+        {[
+          { label: 'Countries visited', value: countries.filter((c) => c.status === 'visited').length },
+          { label: 'Countries on my wishlist', value: countries.filter((c) => c.status === 'wishlist').length },
+          { label: 'Trips completed', value: trips.filter((t) => tripPhase(t) === 'past').length },
+        ].map(({ label, value }) => (
           <View key={label} style={[styles.stat, { backgroundColor: theme.accent }]}>
-            <ThemedText style={styles.value} themeColor="primary">—</ThemedText>
+            <ThemedText style={styles.value} themeColor="primary">{isLoading ? '—' : value}</ThemedText>
             <ThemedText type="small" style={styles.label}>{label}</ThemedText>
           </View>
         ))}
       </View>
-      <EmptyState icon="globe" title="A world of possibilities" description="Your visited countries and travel progress will appear here as your story grows." note="Travel statistics aren't connected yet." />
+      <ActionButton secondary label="My countries" onPress={() => router.push('/countries')} />
     </Screen>
   );
 }

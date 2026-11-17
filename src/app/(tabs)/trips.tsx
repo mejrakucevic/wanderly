@@ -8,11 +8,11 @@ import { AppIcon } from '@/components/ui/app-icon';
 import { ChipGroup } from '@/components/ui/chip';
 import { EmptyState } from '@/components/ui/empty-state';
 import { IconButton } from '@/components/ui/icon-button';
-import { SampleBadge } from '@/components/ui/sample-badge';
+import { DataStatus } from '@/components/ui/data-status';
 import { Screen } from '@/components/ui/screen';
 import { SectionHeader } from '@/components/ui/section-header';
 import { Radius, Spacing } from '@/constants/theme';
-import { useSampleData } from '@/data/sample-store';
+import { useTravelData } from '@/data/travel-store';
 import { useTheme } from '@/hooks/use-theme';
 import { tripPhase } from '@/utils/format';
 
@@ -25,7 +25,7 @@ const FILTERS = [
 
 export default function TripsScreen() {
   const theme = useTheme();
-  const { trips } = useSampleData();
+  const { trips, status, error, isLoading, reload } = useTravelData();
   const [filter, setFilter] = useState<Filter>('upcoming');
   const [query, setQuery] = useState('');
 
@@ -46,8 +46,10 @@ export default function TripsScreen() {
     <Screen
       eyebrow="Your next chapter"
       title="My Trips"
-      action={<IconButton icon="add" label="Plan a new trip" variant="primary" onPress={newTrip} />}>
-      <SampleBadge />
+      action={<IconButton icon="add" label="Plan a new trip" variant="primary" onPress={newTrip} />}
+      onRefresh={reload}
+      refreshing={status === 'loading' && !isLoading}>
+      <DataStatus isLoading={isLoading} error={error} onRetry={reload} />
       <View style={[styles.search, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
         <AppIcon name="search" color={theme.textSecondary} size={18} />
         <TextInput
@@ -70,7 +72,7 @@ export default function TripsScreen() {
         </View>
       ))}
 
-      {sections.length === 0 ? (
+      {sections.length === 0 && !isLoading && !error ? (
         search ? (
           <EmptyState icon="search" title="No trips found" description={`Nothing matches “${query.trim()}”. Try another name or destination.`} />
         ) : (

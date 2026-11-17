@@ -9,14 +9,14 @@ import { ChipGroup } from '@/components/ui/chip';
 import { FormSheet } from '@/components/ui/form-sheet';
 import { TextField } from '@/components/ui/text-field';
 import { Radius, Spacing } from '@/constants/theme';
-import { sampleActions, useSampleData } from '@/data/sample-store';
+import { entryActions, errorMessage, useTravelData } from '@/data/travel-store';
 import { useTheme } from '@/hooks/use-theme';
 import { parseISODate, todayISO } from '@/utils/format';
 
 export default function EntryFormScreen() {
   const theme = useTheme();
   const { id, tripId } = useLocalSearchParams<{ id?: string; tripId?: string }>();
-  const { trips, entries } = useSampleData();
+  const { trips, entries } = useTravelData();
   const existing = entries.find((e) => e.id === id);
   const isEdit = Boolean(existing);
   const tripOptions = [...trips].sort((a, b) => b.start_date.localeCompare(a.start_date)).map((t) => ({ value: t.id, label: t.title }));
@@ -26,8 +26,11 @@ export default function EntryFormScreen() {
   const [content, setContent] = useState(existing?.content ?? '');
   const [date, setDate] = useState(existing?.entry_date ?? todayISO());
   const [errors, setErrors] = useState<{ title?: string; date?: string; trip?: string }>({});
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  function save() {
+  async function save() {
+    if (saving) return;
     const next: typeof errors = {};
     if (!trips.some((t) => t.id === selectedTrip)) next.trip = 'Choose the trip this memory belongs to.';
     if (!title.trim()) next.title = 'Give this entry a title.';
@@ -35,13 +38,20 @@ export default function EntryFormScreen() {
     setErrors(next);
     if (Object.keys(next).length > 0) return;
     const input = { trip_id: selectedTrip, title: title.trim(), content: content.trim(), entry_date: date };
-    if (existing) {
-      sampleActions.updateEntry(existing.id, input);
-      router.back();
-    } else {
-      const entry = sampleActions.createEntry(input);
-      router.back();
-      router.push({ pathname: '/entry/[id]', params: { id: entry.id } });
+    setSaving(true);
+    setSaveError(null);
+    try {
+      if (existing) {
+        await entryActions.update(existing.id, input);
+        router.back();
+      } else {
+        const entry = await entryActions.create(input);
+        router.back();
+        router.push({ pathname: '/entry/[id]', params: { id: entry.id } });
+      }
+    } catch (cause) {
+      setSaveError(errorMessage(cause));
+      setSaving(false);
     }
   }
 
@@ -49,12 +59,23 @@ export default function EntryFormScreen() {
     if (!existing) return;
     Alert.alert('Delete this entry?', 'This can’t be undone.', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => { sampleActions.deleteEntry(existing.id); router.dismiss(2); } },
+      {
+        text: 'Delete', style: 'destructive', onPress: async () => {
+          setSaving(true);
+          try {
+            await entryActions.remove(existing.id);
+            router.dismiss(2); // close this form and the entry detail behind it
+          } catch (cause) {
+            setSaveError(errorMessage(cause));
+            setSaving(false);
+          }
+        },
+      },
     ]);
   }
 
   return (
-    <FormSheet title={isEdit ? 'Edit entry' : 'New entry'} onSave={save}>
+    <FormSheet title={isEdit ? 'Edit entry' : 'New entry'} onSave={save} saving={saving} error={saveError}>
       <View style={styles.group}>
         <ThemedText type="smallBold">Trip</ThemedText>
         {tripOptions.length > 0
@@ -69,7 +90,7 @@ export default function EntryFormScreen() {
         <AppIcon name="photo" color={theme.textSecondary} size={28} />
         <ThemedText type="small" themeColor="textSecondary">Adding photos is coming soon.</ThemedText>
       </View>
-      {isEdit ? <ActionButton secondary label="Delete entry" onPress={confirmDelete} /> : null}
+      {isEdit ? <ActionButton secondary label="Delete entry" onPress={confirmDelete} disabled={saving} /> : null}
     </FormSheet>
   );
 }

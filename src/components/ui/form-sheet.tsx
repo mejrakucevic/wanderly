@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import type { PropsWithChildren } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -12,10 +12,12 @@ type Props = PropsWithChildren<{
   saveLabel?: string;
   onSave: () => void;
   error?: string | null;
+  /** Disables Save and shows a spinner while the request is running. */
+  saving?: boolean;
 }>;
 
 /** Layout for modal forms: Cancel · Title · Save header, keyboard-aware scrolling body. */
-export function FormSheet({ title, saveLabel = 'Save', onSave, error, children }: Props) {
+export function FormSheet({ title, saveLabel = 'Save', onSave, error, saving = false, children }: Props) {
   const theme = useTheme();
   return (
     <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={[styles.page, { backgroundColor: theme.background }]}>
@@ -24,8 +26,17 @@ export function FormSheet({ title, saveLabel = 'Save', onSave, error, children }
           <ThemedText themeColor="textSecondary">Cancel</ThemedText>
         </Pressable>
         <ThemedText accessibilityRole="header" style={styles.title} numberOfLines={1}>{title}</ThemedText>
-        <Pressable accessibilityRole="button" onPress={onSave} hitSlop={8} style={[styles.headerButton, styles.right]}>
-          <ThemedText themeColor="primary" style={styles.save}>{saveLabel}</ThemedText>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={saveLabel}
+          accessibilityState={{ disabled: saving, busy: saving }}
+          disabled={saving}
+          onPress={onSave}
+          hitSlop={8}
+          style={[styles.headerButton, styles.right]}>
+          {saving
+            ? <ActivityIndicator color={theme.primary} />
+            : <ThemedText themeColor="primary" style={styles.save}>{saveLabel}</ThemedText>}
         </Pressable>
       </View>
       <KeyboardAvoidingView style={styles.page} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>

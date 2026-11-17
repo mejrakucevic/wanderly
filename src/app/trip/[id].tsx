@@ -8,13 +8,16 @@ import { TripCover } from '@/components/trips/trip-cover';
 import { ActionButton } from '@/components/ui/action-button';
 import { AppIcon } from '@/components/ui/app-icon';
 import { Card } from '@/components/ui/card';
+import { DataStatus } from '@/components/ui/data-status';
 import { EmptyState } from '@/components/ui/empty-state';
 import { IconButton } from '@/components/ui/icon-button';
 import { ProgressBar } from '@/components/ui/progress-bar';
+import { SampleBadge } from '@/components/ui/sample-badge';
 import { Screen } from '@/components/ui/screen';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Spacing } from '@/constants/theme';
 import { sampleActions, useSampleData } from '@/data/sample-store';
+import { useTravelData } from '@/data/travel-store';
 import { useTheme } from '@/hooks/use-theme';
 import type { Expense, Trip, TripActivity } from '@/types/models';
 import { daysBetween, formatDate, formatDateRange, formatMoney, tripCountdown } from '@/utils/format';
@@ -28,10 +31,18 @@ const TABS = [
 
 export default function TripDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const data = useSampleData();
+  const sample = useSampleData();
+  const travel = useTravelData();
   const [tab, setTab] = useState<Tab>('plan');
-  const trip = data.trips.find((t) => t.id === id);
+  const trip = travel.trips.find((t) => t.id === id);
 
+  if (!trip && (travel.isLoading || travel.error)) {
+    return (
+      <Screen showBack title="Trip">
+        <DataStatus isLoading={travel.isLoading} error={travel.error} onRetry={travel.reload} />
+      </Screen>
+    );
+  }
   if (!trip) {
     return (
       <Screen showBack title="Trip not found">
@@ -40,7 +51,7 @@ export default function TripDetailScreen() {
     );
   }
 
-  const expenses = data.expenses.filter((e) => e.trip_id === trip.id);
+  const expenses = sample.expenses.filter((e) => e.trip_id === trip.id);
   const spent = expenses.reduce((sum, e) => sum + e.amount, 0);
   const days = daysBetween(trip.start_date, trip.end_date) + 1;
 
@@ -61,12 +72,12 @@ export default function TripDetailScreen() {
       <BudgetCard trip={trip} spent={spent} />
 
       <SegmentedControl segments={TABS} value={tab} onChange={setTab} />
-      {tab === 'plan' ? <PlanTab activities={data.activities.filter((a) => a.trip_id === trip.id)} trip={trip} /> : null}
+      {tab === 'plan' ? <PlanTab activities={sample.activities.filter((a) => a.trip_id === trip.id)} trip={trip} /> : null}
       {tab === 'expenses' ? <ExpensesTab expenses={expenses} trip={trip} /> : null}
       {tab === 'diary' ? (
         <View style={styles.list}>
           <ActionButton label="Write a diary entry" onPress={() => router.push({ pathname: '/entry-form', params: { tripId: trip.id } })} />
-          {data.entries.filter((e) => e.trip_id === trip.id).sort((a, b) => b.entry_date.localeCompare(a.entry_date))
+          {travel.entries.filter((e) => e.trip_id === trip.id).sort((a, b) => b.entry_date.localeCompare(a.entry_date))
             .map((entry) => <EntryCard key={entry.id} entry={entry} />)}
         </View>
       ) : null}
@@ -155,6 +166,7 @@ function ExpensesTab({ trip, expenses }: { trip: Trip; expenses: Expense[] }) {
 
   return (
     <View style={styles.list}>
+      <SampleBadge />
       <ActionButton label="Add an expense" onPress={() => router.push({ pathname: '/expense-form', params: { tripId: trip.id } })} />
       {totals.size > 0 ? (
         <View style={styles.categories}>

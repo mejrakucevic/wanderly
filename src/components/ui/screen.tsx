@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import type { PropsWithChildren, ReactNode } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -16,13 +16,19 @@ type ScreenProps = PropsWithChildren<{
   showBack?: boolean;
   /** Content on the right of the title row, e.g. an "add" button. */
   action?: ReactNode;
+  /** Enables pull-to-refresh. */
+  onRefresh?: () => void;
+  refreshing?: boolean;
 }>;
 
-export function Screen({ eyebrow, title, description, showBack = false, action, children }: ScreenProps) {
+export function Screen({ eyebrow, title, description, showBack = false, action, onRefresh, refreshing = false, children }: ScreenProps) {
   const theme = useTheme();
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: theme.background }}>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} colors={[theme.primary]} /> : undefined}>
         <View style={styles.content}>
           {showBack ? (
             <View style={styles.backRow}>
