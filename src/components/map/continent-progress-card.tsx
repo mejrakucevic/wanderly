@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -11,7 +11,14 @@ import { Spacing } from '@/constants/theme';
 import type { CurrentCountry } from '@/hooks/use-current-country';
 import { useTheme } from '@/hooks/use-theme';
 
-export function ContinentProgressCard({ visitedCodes, current }: { visitedCodes: string[]; current: CurrentCountry }) {
+export function ContinentProgressCard({ visitedCodes, current, compact = false, action }: {
+  visitedCodes: string[];
+  current: CurrentCountry;
+  /** Smaller, without its own card, for use inside the map panel. */
+  compact?: boolean;
+  /** Shown at the end of the top row, e.g. an "add country" button. */
+  action?: ReactNode;
+}) {
   const theme = useTheme();
   const [chosen, setChosen] = useState<ContinentId | null>(null);
 
@@ -33,19 +40,21 @@ export function ContinentProgressCard({ visitedCodes, current }: { visitedCodes:
     label: `${progress[id].name} ${progress[id].visited}/${progress[id].total}`,
   }));
 
+  const Container = compact ? View : Card;
   return (
-    <Card style={styles.card}>
+    <Container style={compact ? styles.compact : styles.card}>
       <View style={styles.top}>
         <View style={styles.flex}>
           <View style={styles.heading}>
             {isHere ? <AppIcon name="pin" color={theme.primary} size={16} /> : null}
             <ThemedText type="smallBold" themeColor="primary">{heading}</ThemedText>
           </View>
-          <ThemedText style={styles.count} accessibilityLabel={`${shown.visited} of ${shown.total} countries in ${shown.name} explored`}>
+          <ThemedText style={compact ? styles.countSmall : styles.count} accessibilityLabel={`${shown.visited} of ${shown.total} countries in ${shown.name} explored`}>
             {shown.visited}<ThemedText style={styles.total} themeColor="textSecondary"> / {shown.total} countries</ThemedText>
           </ThemedText>
         </View>
-        <ThemedText style={styles.percent} themeColor="primary">{shown.percent}%</ThemedText>
+        <ThemedText style={compact ? styles.countSmall : styles.percent} themeColor="primary">{shown.percent}%</ThemedText>
+        {action}
       </View>
       <ProgressBar value={shown.visited / shown.total} label={`${shown.percent} percent of ${shown.name} explored`} />
       <ThemedText type="small" themeColor="textSecondary">
@@ -55,7 +64,7 @@ export function ContinentProgressCard({ visitedCodes, current }: { visitedCodes:
       <ChipGroup label="Choose a continent" options={options} value={shown.id} onChange={setChosen} />
 
       {Platform.OS !== 'web' ? <LocationStatus current={current} onUseLocation={() => { setChosen(null); void current.locate(); }} /> : null}
-    </Card>
+    </Container>
   );
 }
 
@@ -93,6 +102,8 @@ function LocationStatus({ current, onUseLocation }: { current: CurrentCountry; o
 
 const styles = StyleSheet.create({
   card: { gap: Spacing.three, padding: Spacing.four },
+  compact: { gap: Spacing.two },
+  countSmall: { fontSize: 22, lineHeight: 28, fontWeight: '700' },
   top: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.three },
   flex: { flex: 1 },
   heading: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },

@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import type { PropsWithChildren, ReactNode } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,6 +6,7 @@ import { ThemedText } from '@/components/themed-text';
 import { IconButton } from '@/components/ui/icon-button';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { goBack } from '@/utils/navigation';
 
 type ScreenProps = PropsWithChildren<{
   title: string;
@@ -32,7 +32,7 @@ export function Screen({ eyebrow, title, description, showBack = false, action, 
         <View style={styles.content}>
           {showBack ? (
             <View style={styles.backRow}>
-              <IconButton icon="back" label="Go back" onPress={() => router.back()} />
+              <IconButton icon="back" label="Go back" onPress={() => goBack()} />
             </View>
           ) : null}
           <View style={styles.header}>

@@ -4,10 +4,10 @@ import { View } from 'react-native';
 import { WorldPreview } from '@/components/map/world-preview';
 import type { PlacesMapProps } from '@/components/map/places-map';
 
-export function PlacesMap({ places, selectedId, onSelect, children }: PlacesMapProps) {
+export function PlacesMap({ places, selectedId, onSelect, embedded, children }: PlacesMapProps) {
   return (
     <View>
-      <WorldPreview places={places} selectedId={selectedId} onSelect={onSelect} />
+      <WorldPreview places={places} selectedId={selectedId} onSelect={onSelect} embedded={embedded} />
       {children}
     </View>
   );

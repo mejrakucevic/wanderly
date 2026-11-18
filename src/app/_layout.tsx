@@ -31,6 +31,7 @@ function RootNavigator() {
         <Stack.Screen name="entry-form" options={{ presentation: 'modal' }} />
         <Stack.Screen name="expense-form" options={{ presentation: 'modal' }} />
         <Stack.Screen name="country-picker" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="activity-form" options={{ presentation: 'modal' }} />
       </Stack.Protected>
       <Stack.Protected guard={!session}>
         <Stack.Screen name="sign-in" />

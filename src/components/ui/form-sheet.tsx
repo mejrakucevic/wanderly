@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import type { PropsWithChildren } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -6,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { goBack } from '@/utils/navigation';
 
 type Props = PropsWithChildren<{
   title: string;
@@ -22,7 +22,7 @@ export function FormSheet({ title, saveLabel = 'Save', onSave, error, saving = f
   return (
     <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={[styles.page, { backgroundColor: theme.background }]}>
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
-        <Pressable accessibilityRole="button" onPress={() => router.back()} hitSlop={8} style={styles.headerButton}>
+        <Pressable accessibilityRole="button" onPress={() => goBack()} hitSlop={8} style={styles.headerButton}>
           <ThemedText themeColor="textSecondary">Cancel</ThemedText>
         </Pressable>
         <ThemedText accessibilityRole="header" style={styles.title} numberOfLines={1}>{title}</ThemedText>

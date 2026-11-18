@@ -1,15 +1,17 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ChipGroup } from '@/components/ui/chip';
+import { DateField } from '@/components/ui/date-field';
 import { FormSheet } from '@/components/ui/form-sheet';
 import { TextField } from '@/components/ui/text-field';
 import { Spacing } from '@/constants/theme';
 import { EXPENSE_CATEGORIES, sampleActions } from '@/data/sample-store';
 import { useTravelData } from '@/data/travel-store';
 import { parseISODate, todayISO } from '@/utils/format';
+import { goBack } from '@/utils/navigation';
 
 type Category = (typeof EXPENSE_CATEGORIES)[number];
 const CATEGORY_OPTIONS = EXPENSE_CATEGORIES.map((value) => ({ value, label: value[0].toUpperCase() + value.slice(1) }));
@@ -34,11 +36,11 @@ export default function ExpenseFormScreen() {
     const next: typeof errors = {};
     if (!title.trim()) next.title = 'What was it for?';
     if (!amount.trim() || !Number.isFinite(value) || value <= 0) next.amount = 'Enter an amount above 0.';
-    if (!parseISODate(date)) next.date = 'Use the format YYYY-MM-DD.';
+    if (!parseISODate(date)) next.date = 'Choose a date.';
     setErrors(next);
     if (Object.keys(next).length > 0) return;
     sampleActions.createExpense({ trip_id: trip.id, title: title.trim(), amount: value, category, expense_date: date });
-    router.back();
+    goBack(trip ? { pathname: '/trip/[id]', params: { id: trip.id } } : '/trips');
   }
 
   return (
@@ -50,7 +52,7 @@ export default function ExpenseFormScreen() {
         <ThemedText type="smallBold">Category</ThemedText>
         <ChipGroup label="Category" options={CATEGORY_OPTIONS} value={category} onChange={setCategory} />
       </View>
-      <TextField label="Date" value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" keyboardType="numbers-and-punctuation" maxLength={10} error={errors.date} />
+      <DateField label="Date" value={date} onChange={setDate} error={errors.date} />
     </FormSheet>
   );
 }

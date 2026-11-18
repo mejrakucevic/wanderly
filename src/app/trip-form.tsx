@@ -3,12 +3,14 @@ import { useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 
 import { ActionButton } from '@/components/ui/action-button';
+import { DateField } from '@/components/ui/date-field';
 import { FormSheet } from '@/components/ui/form-sheet';
 import { TextField } from '@/components/ui/text-field';
 import { Spacing } from '@/constants/theme';
 import { errorMessage, tripActions, useTravelData } from '@/data/travel-store';
 import type { CreateTrip } from '@/services/trips';
-import { addDays, parseISODate, todayISO } from '@/utils/format';
+import { addDays, daysBetween, parseISODate, todayISO } from '@/utils/format';
+import { goBack } from '@/utils/navigation';
 
 type Errors = Partial<Record<'title' | 'destination' | 'start_date' | 'end_date' | 'budget' | 'currency', string>>;
 
@@ -28,14 +30,21 @@ export default function TripFormScreen() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  // Moving the start keeps the trip length, so the end never lands before the start.
+  function changeStart(next: string) {
+    const length = Math.max(0, daysBetween(startDate, endDate));
+    setStartDate(next);
+    if (endDate < next) setEndDate(addDays(next, length));
+  }
+
   function validate(): CreateTrip | null {
     const next: Errors = {};
     if (!title.trim()) next.title = 'Give your trip a name.';
     else if (title.trim().length > 150) next.title = 'Keep the name under 150 characters.';
     if (!destination.trim()) next.destination = 'Where are you going?';
     else if (destination.trim().length > 200) next.destination = 'Keep the destination under 200 characters.';
-    if (!parseISODate(startDate)) next.start_date = 'Use the format YYYY-MM-DD.';
-    if (!parseISODate(endDate)) next.end_date = 'Use the format YYYY-MM-DD.';
+    if (!parseISODate(startDate)) next.start_date = 'Choose a start date.';
+    if (!parseISODate(endDate)) next.end_date = 'Choose an end date.';
     else if (!next.start_date && endDate < startDate) next.end_date = 'The trip can’t end before it starts.';
     const amount = budget.trim() === '' ? 0 : Number(budget.replace(',', '.'));
     if (!Number.isFinite(amount) || amount < 0) next.budget = 'Enter a positive number, or leave it empty.';
@@ -56,10 +65,10 @@ export default function TripFormScreen() {
     try {
       if (existing) {
         await tripActions.update(existing.id, input);
-        router.back();
+        goBack({ pathname: '/trip/[id]', params: { id: existing.id } });
       } else {
         const trip = await tripActions.create(input);
-        router.back();
+        goBack('/trips');
         router.push({ pathname: '/trip/[id]', params: { id: trip.id } });
       }
     } catch (cause) {
@@ -77,7 +86,7 @@ export default function TripFormScreen() {
           setSaving(true);
           try {
             await tripActions.remove(existing.id);
-            router.dismiss(2); // close this form and the trip detail behind it
+            router.dismissTo('/trips'); // the trip is gone, so return to the list
           } catch (cause) {
             setSaveError(errorMessage(cause));
             setSaving(false);
@@ -94,14 +103,15 @@ export default function TripFormScreen() {
     <FormSheet title={isEdit ? 'Edit trip' : 'New trip'} saveLabel={isEdit ? 'Save' : 'Create'} onSave={save} saving={saving} error={formError}>
       <TextField label="Trip name" value={title} onChangeText={setTitle} placeholder="Summer in Croatia" error={errors.title} maxLength={150} autoFocus={!isEdit} />
       <TextField label="Destination" value={destination} onChangeText={setDestination} placeholder="City, region or country" error={errors.destination} maxLength={200} />
-      <View style={styles.row}>
-        <View style={styles.flex}>
-          <TextField label="Start date" value={startDate} onChangeText={setStartDate} placeholder="YYYY-MM-DD" error={errors.start_date} keyboardType="numbers-and-punctuation" maxLength={10} />
-        </View>
-        <View style={styles.flex}>
-          <TextField label="End date" value={endDate} onChangeText={setEndDate} placeholder="YYYY-MM-DD" error={errors.end_date} keyboardType="numbers-and-punctuation" maxLength={10} />
-        </View>
-      </View>
+      <DateField label="Start date" value={startDate} onChange={changeStart} error={errors.start_date} />
+      <DateField
+        label="End date"
+        value={endDate}
+        onChange={setEndDate}
+        minimumDate={startDate}
+        error={errors.end_date}
+        hint={`${daysBetween(startDate, endDate) + 1} days`}
+      />
       <View style={styles.row}>
         <View style={styles.flex}>
           <TextField label="Budget" value={budget} onChangeText={setBudget} placeholder="0" error={errors.budget} keyboardType="decimal-pad" hint="Optional" />

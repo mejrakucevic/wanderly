@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,6 +12,7 @@ import { Radius, Spacing } from '@/constants/theme';
 import { countryActions, errorMessage, useTravelData } from '@/data/travel-store';
 import { useTheme } from '@/hooks/use-theme';
 import type { CountryStatus } from '@/services/countries';
+import { goBack } from '@/utils/navigation';
 
 /** Ignores case and accents, so "cote" finds "Côte d’Ivoire". */
 const normalize = (text: string) => text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
@@ -55,7 +56,7 @@ export default function CountryPickerScreen() {
         <ThemedText accessibilityRole="header" style={styles.title} numberOfLines={1}>
           Add countries
         </ThemedText>
-        <Pressable accessibilityRole="button" onPress={() => router.back()} hitSlop={8} style={[styles.headerSide, styles.right]}>
+        <Pressable accessibilityRole="button" onPress={() => goBack()} hitSlop={8} style={[styles.headerSide, styles.right]}>
           <ThemedText themeColor="primary" style={styles.done}>Done</ThemedText>
         </Pressable>
       </View>

@@ -1,5 +1,5 @@
 /**
- * The signed-in user's real trips, diary entries and countries, loaded from the Node API.
+ * The signed-in user's real trips, trip plans, diary entries and countries, loaded from the Node API.
  *
  * Screens read from one shared cache, so a trip created in the form appears in the list
  * and detail screens without reloading. Every change is sent to the API first; the cache
@@ -8,10 +8,11 @@
 import { useEffect, useSyncExternalStore } from 'react';
 
 import { useAuth } from '@/providers/auth-provider';
+import * as activitiesApi from '@/services/activities';
 import * as countriesApi from '@/services/countries';
 import * as diaryApi from '@/services/diary';
 import * as tripsApi from '@/services/trips';
-import type { DiaryEntry, Trip, UserCountry } from '@/types/models';
+import type { DiaryEntry, Trip, TripActivity, UserCountry } from '@/types/models';
 
 export type LoadStatus = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -21,10 +22,11 @@ export type TravelState = {
   error: string | null;
   trips: Trip[];
   entries: DiaryEntry[];
+  activities: TripActivity[];
   countries: UserCountry[];
 };
 
-const EMPTY: TravelState = { userId: null, status: 'idle', error: null, trips: [], entries: [], countries: [] };
+const EMPTY: TravelState = { userId: null, status: 'idle', error: null, trips: [], entries: [], activities: [], countries: [] };
 const PAGE_SIZE = 100; // the API's maximum page size
 
 let state = EMPTY;
@@ -61,13 +63,14 @@ export async function loadTravelData(userId: string) {
   const id = ++loadId;
   setState((s) => ({ ...(s.userId === userId ? s : EMPTY), userId, status: 'loading', error: null }));
   try {
-    const [trips, entries, countries] = await Promise.all([
+    const [trips, entries, activities, countries] = await Promise.all([
       loadAll((limit, offset) => tripsApi.listTrips(limit, offset)),
       loadAll((limit, offset) => diaryApi.listDiaryEntries(undefined, limit, offset)),
+      loadAll((limit, offset) => activitiesApi.listActivities(limit, offset)),
       countriesApi.listCountries(),
     ]);
     if (id !== loadId) return; // a newer load (or sign-out) replaced this one
-    setState((s) => ({ ...s, status: 'ready', trips, entries, countries }));
+    setState((s) => ({ ...s, status: 'ready', trips, entries, activities, countries }));
   } catch (cause) {
     if (id !== loadId) return;
     setState((s) => ({ ...s, status: 'error', error: errorMessage(cause) }));
@@ -112,8 +115,13 @@ export const tripActions = {
   },
   async remove(id: string) {
     await tripsApi.deleteTrip(id);
-    // Diary entries need a trip, so a successful delete means the database removed them too.
-    setState((s) => ({ ...s, trips: s.trips.filter((t) => t.id !== id), entries: s.entries.filter((e) => e.trip_id !== id) }));
+    // Entries and plan items need a trip, so a successful delete means the database removed them too.
+    setState((s) => ({
+      ...s,
+      trips: s.trips.filter((t) => t.id !== id),
+      entries: s.entries.filter((e) => e.trip_id !== id),
+      activities: s.activities.filter((a) => a.trip_id !== id),
+    }));
   },
 };
 
@@ -151,5 +159,22 @@ export const countryActions = {
   async remove(id: string) {
     await countriesApi.removeCountry(id);
     setState((s) => ({ ...s, countries: s.countries.filter((c) => c.id !== id) }));
+  },
+};
+
+export const activityActions = {
+  async create(input: activitiesApi.CreateActivity) {
+    const activity = await activitiesApi.createActivity(input);
+    setState((s) => ({ ...s, activities: [...s.activities, activity] }));
+    return activity;
+  },
+  async update(id: string, input: Partial<activitiesApi.ActivityInput>) {
+    const activity = await activitiesApi.updateActivity(id, input);
+    setState((s) => ({ ...s, activities: s.activities.map((a) => (a.id === id ? activity : a)) }));
+    return activity;
+  },
+  async remove(id: string) {
+    await activitiesApi.deleteActivity(id);
+    setState((s) => ({ ...s, activities: s.activities.filter((a) => a.id !== id) }));
   },
 };

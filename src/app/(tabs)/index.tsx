@@ -8,37 +8,30 @@ import { ThemedText } from '@/components/themed-text';
 import { TripCard } from '@/components/trips/trip-card';
 import { AppIcon } from '@/components/ui/app-icon';
 import { Card } from '@/components/ui/card';
-import { ChipGroup } from '@/components/ui/chip';
 import { IconButton } from '@/components/ui/icon-button';
-import { SampleBadge } from '@/components/ui/sample-badge';
 import { Screen } from '@/components/ui/screen';
 import { SectionHeader } from '@/components/ui/section-header';
-import { countryFlag } from '@/constants/countries';
+import { CONTINENTS, continentOf } from '@/constants/continents';
+import { countryFlag, countryName, countryPosition } from '@/constants/countries';
 import { Radius, Spacing } from '@/constants/theme';
-import { useSampleData } from '@/data/sample-store';
 import { useTravelData } from '@/data/travel-store';
 import { useCurrentCountry } from '@/hooks/use-current-country';
 import { useTheme } from '@/hooks/use-theme';
-import type { Location } from '@/types/models';
+import type { Location, UserCountry } from '@/types/models';
 import { formatDate, tripPhase } from '@/utils/format';
 
 type Filter = 'all' | 'visited' | 'wishlist';
-const FILTERS = [
-  { value: 'all', label: 'All places' },
-  { value: 'visited', label: 'Been there' },
-  { value: 'wishlist', label: 'Want to go' },
-] as const;
 
 export default function MapScreen() {
   const theme = useTheme();
-  const { locations } = useSampleData();
   const { trips, countries } = useTravelData();
+  // One pin per country on your lists, placed at its capital.
+  const pins = countries.flatMap(countryPin);
   const [filter, setFilter] = useState<Filter>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const places = locations.filter((l) => filter === 'all' || l.status === filter);
+  const places = pins.filter((l) => filter === 'all' || l.status === filter);
   const selected = places.find((l) => l.id === selectedId) ?? null;
-  const visited = locations.filter((l) => l.status === 'visited');
   const visitedCodes = countries.filter((c) => c.status === 'visited').map((c) => c.country_code);
   const wishlistCount = countries.length - visitedCodes.length;
   const current = useCurrentCountry();
@@ -48,46 +41,45 @@ export default function MapScreen() {
 
   return (
     <Screen eyebrow="Wanderly" title="Your world">
-      <SampleBadge />
-      <ChipGroup label="Filter places" options={FILTERS} value={filter} onChange={(value) => { setFilter(value); setSelectedId(null); }} />
-
-      <PlacesMap places={places} selectedId={selectedId} onSelect={setSelectedId} showsUserLocation={current.hasPermission}>
-        <View pointerEvents="none" style={[styles.legend, { backgroundColor: theme.backgroundElement }]}>
-          <LegendDot color={theme.primary} label={`Been there · ${visited.length}`} />
-          <LegendDot color={theme.pinWishlist} label={`Want to go · ${locations.length - visited.length}`} />
-        </View>
-        {selected ? (
-          <Card style={[styles.selected, { borderColor: theme.primary }]}>
-            <PlaceRow place={selected} showNotes />
-            <IconButton icon="close" label="Show all places" size={36} onPress={() => setSelectedId(null)} />
-          </Card>
-        ) : null}
-      </PlacesMap>
-
-      {/* Right under the map: your countries at a glance, and a + to add more. */}
-      <View style={styles.countries}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`My countries: been to ${visitedCodes.length}, want to go to ${wishlistCount}`}
-          accessibilityHint="Opens your list of countries"
-          onPress={() => router.push('/countries')}
-          style={({ pressed }) => [styles.countriesInfo, pressed && { opacity: 0.7 }]}>
-          {visitedCodes.length > 0 ? (
-            <ThemedText style={styles.flags} numberOfLines={1}>
-              {visitedCodes.slice(0, 6).map(countryFlag).join(' ')}
-              {visitedCodes.length > 6 ? <ThemedText type="small" themeColor="textSecondary"> +{visitedCodes.length - 6}</ThemedText> : null}
-            </ThemedText>
+      {/* Map and your country progress in one panel, so everything fits without scrolling. */}
+      <View style={[styles.panel, { borderColor: theme.border, backgroundColor: theme.backgroundElement }]}>
+        <PlacesMap embedded height={280} places={places} selectedId={selectedId} onSelect={setSelectedId} showsUserLocation={current.hasPermission}>
+          {/* The legend doubles as the filter: tap a status to show only those pins, tap again for all. */}
+          <View style={[styles.legend, { backgroundColor: theme.backgroundElement }]}>
+            <LegendFilter color={theme.primary} label={`Been there · ${visitedCodes.length}`} selected={filter === 'visited'}
+              onPress={() => { setFilter(filter === 'visited' ? 'all' : 'visited'); setSelectedId(null); }} />
+            <LegendFilter color={theme.pinWishlist} label={`Want to go · ${wishlistCount}`} selected={filter === 'wishlist'}
+              onPress={() => { setFilter(filter === 'wishlist' ? 'all' : 'wishlist'); setSelectedId(null); }} />
+          </View>
+          {selected ? (
+            <Card style={[styles.selected, { borderColor: theme.primary }]}>
+              <PlaceRow place={selected} showNotes />
+              <IconButton icon="close" label="Show all countries" size={36} onPress={() => setSelectedId(null)} />
+            </Card>
           ) : null}
-          <ThemedText type="small" themeColor="textSecondary">
-            {countries.length === 0
-              ? 'Add the countries you’ve visited or dream of'
-              : `Been to ${visitedCodes.length} · Want to go to ${wishlistCount}`}
-          </ThemedText>
-        </Pressable>
-        <IconButton icon="add" label="Add a country" variant="primary" onPress={() => router.push('/country-picker')} />
+        </PlacesMap>
+        <View style={styles.panelBody}>
+          {visitedCodes.length > 0 ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`My countries: been to ${visitedCodes.length}, want to go to ${wishlistCount}`}
+              accessibilityHint="Opens your list of countries"
+              onPress={() => router.push('/countries')}
+              style={({ pressed }) => pressed && { opacity: 0.7 }}>
+              <ThemedText style={styles.flags} numberOfLines={1}>
+                {visitedCodes.slice(0, 8).map(countryFlag).join(' ')}
+                {visitedCodes.length > 8 ? <ThemedText type="small" themeColor="textSecondary"> +{visitedCodes.length - 8}</ThemedText> : null}
+              </ThemedText>
+            </Pressable>
+          ) : null}
+          <ContinentProgressCard
+            compact
+            visitedCodes={visitedCodes}
+            current={current}
+            action={<IconButton icon="add" label="Add a country" variant="primary" onPress={() => router.push('/country-picker')} />}
+          />
+        </View>
       </View>
-
-      <ContinentProgressCard visitedCodes={visitedCodes} current={current} />
 
       {nextTrip ? (
         <View style={styles.section}>
@@ -97,7 +89,7 @@ export default function MapScreen() {
       ) : null}
 
       <View style={styles.section}>
-        <SectionHeader title="Saved places" detail="Tap a place to find it on the map." />
+        <SectionHeader title="Your countries" detail="Tap a country to find it on the map." />
         <Card>
           {places.map((place, index) => (
             <Pressable
@@ -109,20 +101,47 @@ export default function MapScreen() {
               <PlaceRow place={place} />
             </Pressable>
           ))}
-          {places.length === 0 ? <ThemedText themeColor="textSecondary">No places here yet.</ThemedText> : null}
+          {places.length === 0 ? <ThemedText themeColor="textSecondary">No countries here yet. Tap + to add one.</ThemedText> : null}
         </Card>
-        <ThemedText type="small" themeColor="textSecondary">Adding your own pins is coming soon.</ThemedText>
       </View>
     </Screen>
   );
 }
 
-function LegendDot({ color, label }: { color: string; label: string }) {
+/** Shows a saved country as a map pin, using the same shape as a saved place. */
+function countryPin(country: UserCountry): Location[] {
+  const position = countryPosition(country.country_code);
+  if (!position) return [];
+  const continent = continentOf(country.country_code);
+  return [{
+    id: country.id,
+    user_id: country.user_id,
+    name: `${countryFlag(country.country_code)} ${countryName(country.country_code)}`,
+    city: null,
+    country: continent ? CONTINENTS[continent].name : '',
+    country_code: country.country_code,
+    ...position,
+    status: country.status,
+    visited_at: country.visited_at,
+    notes: null,
+    created_at: country.created_at,
+    updated_at: country.updated_at,
+  }];
+}
+
+function LegendFilter({ color, label, selected, onPress }: { color: string; label: string; selected: boolean; onPress: () => void }) {
+  const theme = useTheme();
   return (
-    <View style={styles.legendItem}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      accessibilityHint={selected ? 'Shows all countries' : 'Shows only these countries on the map'}
+      onPress={onPress}
+      hitSlop={6}
+      style={({ pressed }) => [styles.legendItem, selected && { backgroundColor: theme.accent }, pressed && { opacity: 0.7 }]}>
       <View style={[styles.dot, { backgroundColor: color }]} />
-      <ThemedText type="small" themeColor="textSecondary">{label}</ThemedText>
-    </View>
+      <ThemedText type={selected ? 'smallBold' : 'small'} themeColor={selected ? 'text' : 'textSecondary'}>{label}</ThemedText>
+    </Pressable>
   );
 }
 
@@ -147,8 +166,10 @@ function PlaceRow({ place, showNotes = false }: { place: Location; showNotes?: b
 }
 
 const styles = StyleSheet.create({
-  legend: { position: 'absolute', top: Spacing.three, left: Spacing.three, flexDirection: 'row', gap: Spacing.three, borderRadius: Radius.pill, paddingHorizontal: Spacing.three, paddingVertical: Spacing.one, boxShadow: '0 1px 4px rgba(45, 25, 61, 0.2)' },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one + 2 },
+  panel: { borderWidth: 1, borderRadius: Radius.card, overflow: 'hidden' },
+  panelBody: { padding: Spacing.three, gap: Spacing.three },
+  legend: { position: 'absolute', top: Spacing.two, left: Spacing.two, flexDirection: 'row', gap: Spacing.one, borderRadius: Radius.pill, padding: Spacing.half, boxShadow: '0 1px 4px rgba(45, 25, 61, 0.2)' },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one + 2, borderRadius: Radius.pill, paddingHorizontal: Spacing.two, paddingVertical: Spacing.one, minHeight: 32 },
   dot: { width: 10, height: 10, borderRadius: Radius.pill },
   selected: { position: 'absolute', left: Spacing.three, right: Spacing.three, bottom: Spacing.three, flexDirection: 'row', alignItems: 'center', gap: Spacing.two, borderWidth: 2, paddingVertical: Spacing.one },
   section: { gap: Spacing.three },
@@ -157,7 +178,5 @@ const styles = StyleSheet.create({
   placeName: { fontWeight: '700' },
   notes: { marginTop: Spacing.one },
   flex: { flex: 1 },
-  countries: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, marginTop: -Spacing.two },
-  countriesInfo: { flex: 1, gap: Spacing.half, minHeight: 44, justifyContent: 'center' },
   flags: { fontSize: 22, lineHeight: 30 },
 });

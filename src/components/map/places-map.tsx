@@ -16,12 +16,14 @@ export type PlacesMapProps = {
   showsUserLocation?: boolean;
   /** Content drawn on top of the map (legend, selected-place card). */
   children?: ReactNode;
+  /** Drops the map's own border and rounded corners when it sits inside another card. */
+  embedded?: boolean;
 };
 
 const EDGE_PADDING = { top: 60, right: 50, bottom: 60, left: 50 };
 
 /** Interactive map (Apple Maps on iOS, Google Maps on Android) with a pin per saved place. */
-export function PlacesMap({ places, selectedId, onSelect, height = 380, showsUserLocation = false, children }: PlacesMapProps) {
+export function PlacesMap({ places, selectedId, onSelect, height = 380, showsUserLocation = false, embedded = false, children }: PlacesMapProps) {
   const theme = useTheme();
   const scheme = useColorScheme();
   const map = useRef<MapView>(null);
@@ -49,7 +51,7 @@ export function PlacesMap({ places, selectedId, onSelect, height = 380, showsUse
   useEffect(() => moveCamera(), [selectedId, placeKey]);
 
   return (
-    <View style={[styles.frame, { height, borderColor: theme.border }]}>
+    <View style={[styles.frame, { height, borderColor: theme.border }, embedded && styles.embedded]}>
       <MapView
         ref={map}
         style={StyleSheet.absoluteFill}
@@ -79,4 +81,5 @@ export function PlacesMap({ places, selectedId, onSelect, height = 380, showsUse
 
 const styles = StyleSheet.create({
   frame: { width: '100%', borderRadius: Radius.card, borderWidth: 1, overflow: 'hidden' },
+  embedded: { borderRadius: 0, borderWidth: 0 },
 });

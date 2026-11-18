@@ -15,6 +15,7 @@ import { ProgressBar } from '@/components/ui/progress-bar';
 import { SampleBadge } from '@/components/ui/sample-badge';
 import { Screen } from '@/components/ui/screen';
 import { SegmentedControl } from '@/components/ui/segmented-control';
+import { PLAN_CATEGORIES, planItemIcon, type PlanCategory } from '@/constants/plan';
 import { Spacing } from '@/constants/theme';
 import { sampleActions, useSampleData } from '@/data/sample-store';
 import { useTravelData } from '@/data/travel-store';
@@ -53,6 +54,8 @@ export default function TripDetailScreen() {
 
   const expenses = sample.expenses.filter((e) => e.trip_id === trip.id);
   const spent = expenses.reduce((sum, e) => sum + e.amount, 0);
+  const activities = travel.activities.filter((a) => a.trip_id === trip.id);
+  const planned = activities.reduce((sum, a) => sum + (a.cost ?? 0), 0);
   const days = daysBetween(trip.start_date, trip.end_date) + 1;
 
   return (
@@ -69,10 +72,10 @@ export default function TripDetailScreen() {
       </View>
       {trip.description ? <ThemedText themeColor="textSecondary">{trip.description}</ThemedText> : null}
 
-      <BudgetCard trip={trip} spent={spent} />
+      <BudgetCard trip={trip} planned={planned} spent={spent} />
 
       <SegmentedControl segments={TABS} value={tab} onChange={setTab} />
-      {tab === 'plan' ? <PlanTab activities={sample.activities.filter((a) => a.trip_id === trip.id)} trip={trip} /> : null}
+      {tab === 'plan' ? <PlanTab activities={activities} trip={trip} /> : null}
       {tab === 'expenses' ? <ExpensesTab expenses={expenses} trip={trip} /> : null}
       {tab === 'diary' ? (
         <View style={styles.list}>
@@ -96,57 +99,98 @@ function Fact({ icon, label, detail }: { icon: 'calendar' | 'wallet'; label: str
   );
 }
 
-function BudgetCard({ trip, spent }: { trip: Trip; spent: number }) {
-  const ratio = trip.budget > 0 ? spent / trip.budget : 0;
-  const remaining = trip.budget - spent;
+function BudgetCard({ trip, planned, spent }: { trip: Trip; planned: number; spent: number }) {
+  const total = planned + spent;
+  const ratio = trip.budget > 0 ? total / trip.budget : 0;
+  const remaining = trip.budget - total;
   return (
     <Card>
       <View style={styles.between}>
-        <ThemedText type="smallBold">Spent {formatMoney(spent, trip.currency)}</ThemedText>
+        <ThemedText type="smallBold">
+          Planned {formatMoney(planned, trip.currency)}{spent > 0 ? ` · Spent ${formatMoney(spent, trip.currency)}` : ''}
+        </ThemedText>
         <ThemedText type="small" themeColor={remaining < 0 ? 'danger' : 'textSecondary'}>
           {remaining < 0 ? `${formatMoney(-remaining, trip.currency)} over budget` : `${formatMoney(remaining, trip.currency)} left`}
         </ThemedText>
       </View>
-      <ProgressBar value={ratio} label={`${Math.round(ratio * 100)} percent of budget spent`} />
+      <ProgressBar value={ratio} label={`${Math.round(ratio * 100)} percent of budget used`} />
     </Card>
   );
 }
 
 function PlanTab({ trip, activities }: { trip: Trip; activities: TripActivity[] }) {
   const theme = useTheme();
-  const byDay = new Map<string, TripActivity[]>();
-  [...activities]
-    .sort((a, b) => a.activity_date.localeCompare(b.activity_date) || a.sort_order - b.sort_order)
-    .forEach((a) => byDay.set(a.activity_date, [...(byDay.get(a.activity_date) ?? []), a]));
+  const sorted = [...activities].sort((a, b) =>
+    a.activity_date.localeCompare(b.activity_date) || (a.start_time ?? '').localeCompare(b.start_time ?? '') || a.sort_order - b.sort_order);
 
   return (
     <View style={styles.list}>
-      {[...byDay].map(([date, items]) => (
-        <View key={date} style={styles.day}>
-          <ThemedText type="smallBold" themeColor="primary">
-            Day {daysBetween(trip.start_date, date) + 1} · {formatDate(date, { weekday: 'short', day: 'numeric', month: 'short' })}
-          </ThemedText>
-          <Card>
-            {items.map((item, index) => (
-              <View key={item.id} style={[styles.activity, index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border }]}>
-                <ThemedText type="smallBold" themeColor="textSecondary" style={styles.time}>{item.start_time?.slice(0, 5) ?? '—'}</ThemedText>
-                <View style={styles.flex}>
-                  <ThemedText>{item.title}</ThemedText>
-                  {item.description ? <ThemedText type="small" themeColor="textSecondary">{item.description}</ThemedText> : null}
-                </View>
-              </View>
-            ))}
-          </Card>
-        </View>
+      {PLAN_CATEGORIES.map((category) => (
+        <PlanSection key={category.id} trip={trip} category={category} items={sorted.filter((a) => a.category === category.id)} />
       ))}
-      {byDay.size === 0 ? <EmptyState icon="calendar" title="No plans yet" description="Your day-by-day itinerary will appear here." /> : null}
       <Card style={styles.soon}>
         <AppIcon name="sparkles" color={theme.primary} />
         <View style={styles.flex}>
-          <ThemedText type="smallBold">Adding activities and AI itineraries</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">Coming in a later version.</ThemedText>
+          <ThemedText type="smallBold">AI travel assistant · coming soon</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            Tell it your dates and budget, and it will suggest the cheapest stays and transport and fill in your plan.
+          </ThemedText>
         </View>
       </Card>
+    </View>
+  );
+}
+
+/** "3 Jun → 6 Jun" for stays, "3 Jun · 14:30" when there's a time, otherwise "3 Jun". */
+function itemWhen(item: TripActivity) {
+  const day = (iso: string) => formatDate(iso, { day: 'numeric', month: 'short' });
+  if (item.end_date && item.end_date !== item.activity_date) return `${day(item.activity_date)} → ${day(item.end_date)}`;
+  return item.start_time ? `${day(item.activity_date)} · ${item.start_time.slice(0, 5)}` : day(item.activity_date);
+}
+
+function PlanSection({ trip, category, items }: { trip: Trip; category: PlanCategory; items: TripActivity[] }) {
+  const theme = useTheme();
+  const total = items.reduce((sum, a) => sum + (a.cost ?? 0), 0);
+  const add = () => router.push({ pathname: '/activity-form', params: { tripId: trip.id, category: category.id } });
+
+  return (
+    <View style={styles.day}>
+      <View style={styles.sectionHeader}>
+        <View style={[styles.sectionIcon, { backgroundColor: theme.accent }]}>
+          <AppIcon name={category.icon} color={theme.primary} size={18} />
+        </View>
+        <View style={styles.flex}>
+          <ThemedText accessibilityRole="header" style={styles.sectionTitle}>{category.title}</ThemedText>
+          {total > 0 ? <ThemedText type="small" themeColor="textSecondary">{formatMoney(total, trip.currency)}</ThemedText> : null}
+        </View>
+        <IconButton icon="add" label={`Add ${category.noun}`} size={36} onPress={add} />
+      </View>
+      {items.length > 0 ? (
+        <Card>
+          {items.map((item, index) => (
+            <Pressable
+              key={item.id}
+              accessibilityRole="button"
+              accessibilityHint="Opens this item to edit or delete it"
+              onPress={() => router.push({ pathname: '/activity-form', params: { id: item.id } })}
+              style={({ pressed }) => [styles.activity, index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border }, pressed && { opacity: 0.7 }]}>
+              <View style={[styles.itemIcon, { backgroundColor: theme.accent }]}>
+                <AppIcon name={planItemIcon(item)} color={theme.primary} size={20} />
+              </View>
+              <View style={styles.flex}>
+                <ThemedText>{item.title}</ThemedText>
+                <ThemedText type="small" themeColor="primary">{itemWhen(item)}</ThemedText>
+                {item.description ? <ThemedText type="small" themeColor="textSecondary" numberOfLines={2}>{item.description}</ThemedText> : null}
+              </View>
+              {item.cost != null ? <ThemedText type="smallBold">{formatMoney(item.cost, trip.currency)}</ThemedText> : null}
+            </Pressable>
+          ))}
+        </Card>
+      ) : (
+        <Pressable accessibilityRole="button" onPress={add} style={[styles.emptySection, { borderColor: theme.border }]}>
+          <ThemedText type="small" themeColor="textSecondary">No {category.title.toLowerCase()} yet · tap to add</ThemedText>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -211,8 +255,12 @@ const styles = StyleSheet.create({
   between: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.two, flexWrap: 'wrap' },
   list: { gap: Spacing.three },
   day: { gap: Spacing.two },
-  activity: { flexDirection: 'row', gap: Spacing.three, paddingVertical: Spacing.two },
-  time: { width: 48 },
+  activity: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.two, minHeight: 52 },
+  itemIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  sectionIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  sectionTitle: { fontSize: 18, lineHeight: 24, fontWeight: '700' },
+  emptySection: { borderWidth: 1, borderStyle: 'dashed', borderRadius: 16, padding: Spacing.three, alignItems: 'center' },
   flex: { flex: 1 },
   soon: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, borderStyle: 'dashed' },
   categories: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },

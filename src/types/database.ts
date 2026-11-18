@@ -194,6 +194,10 @@ export type Database = {
           ai_generated: boolean;
           created_at: string;
           updated_at: string;
+          category: string;
+          cost: number | null;
+          end_date: string | null;
+          icon: string | null;
         };
         Insert: {
           id?: string;
@@ -208,6 +212,10 @@ export type Database = {
           ai_generated?: boolean;
           created_at?: string;
           updated_at?: string;
+          category?: string;
+          cost?: number | null;
+          end_date?: string | null;
+          icon?: string | null;
         };
         Update: {
           id?: string;
@@ -222,6 +230,10 @@ export type Database = {
           ai_generated?: boolean;
           created_at?: string;
           updated_at?: string;
+          category?: string;
+          cost?: number | null;
+          end_date?: string | null;
+          icon?: string | null;
         };
         Relationships: [];
       };

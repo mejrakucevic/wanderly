@@ -6,12 +6,14 @@ import { ThemedText } from '@/components/themed-text';
 import { ActionButton } from '@/components/ui/action-button';
 import { AppIcon } from '@/components/ui/app-icon';
 import { ChipGroup } from '@/components/ui/chip';
+import { DateField } from '@/components/ui/date-field';
 import { FormSheet } from '@/components/ui/form-sheet';
 import { TextField } from '@/components/ui/text-field';
 import { Radius, Spacing } from '@/constants/theme';
 import { entryActions, errorMessage, useTravelData } from '@/data/travel-store';
 import { useTheme } from '@/hooks/use-theme';
 import { parseISODate, todayISO } from '@/utils/format';
+import { goBack } from '@/utils/navigation';
 
 export default function EntryFormScreen() {
   const theme = useTheme();
@@ -34,7 +36,7 @@ export default function EntryFormScreen() {
     const next: typeof errors = {};
     if (!trips.some((t) => t.id === selectedTrip)) next.trip = 'Choose the trip this memory belongs to.';
     if (!title.trim()) next.title = 'Give this entry a title.';
-    if (!parseISODate(date)) next.date = 'Use the format YYYY-MM-DD.';
+    if (!parseISODate(date)) next.date = 'Choose a date.';
     setErrors(next);
     if (Object.keys(next).length > 0) return;
     const input = { trip_id: selectedTrip, title: title.trim(), content: content.trim(), entry_date: date };
@@ -43,10 +45,10 @@ export default function EntryFormScreen() {
     try {
       if (existing) {
         await entryActions.update(existing.id, input);
-        router.back();
+        goBack({ pathname: '/entry/[id]', params: { id: existing.id } });
       } else {
         const entry = await entryActions.create(input);
-        router.back();
+        goBack('/diary');
         router.push({ pathname: '/entry/[id]', params: { id: entry.id } });
       }
     } catch (cause) {
@@ -64,7 +66,7 @@ export default function EntryFormScreen() {
           setSaving(true);
           try {
             await entryActions.remove(existing.id);
-            router.dismiss(2); // close this form and the entry detail behind it
+            router.dismissTo('/diary'); // the entry is gone, so return to the diary
           } catch (cause) {
             setSaveError(errorMessage(cause));
             setSaving(false);
@@ -84,7 +86,7 @@ export default function EntryFormScreen() {
         {errors.trip ? <ThemedText type="small" themeColor="danger">{errors.trip}</ThemedText> : null}
       </View>
       <TextField label="Title" value={title} onChangeText={setTitle} placeholder="The best sunset so far" error={errors.title} maxLength={150} />
-      <TextField label="Date" value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" keyboardType="numbers-and-punctuation" maxLength={10} error={errors.date} />
+      <DateField label="Date" value={date} onChange={setDate} error={errors.date} />
       <TextField label="Your story" value={content} onChangeText={setContent} placeholder="What happened today? What do you want to remember?" multiline maxLength={50000} />
       <View style={[styles.photos, { borderColor: theme.border }]}>
         <AppIcon name="photo" color={theme.textSecondary} size={28} />
