@@ -1,32 +1,24 @@
-import { NativeTabs } from 'expo-router/native-tabs';
-import { useColorScheme } from 'react-native';
+import { Tabs } from 'expo-router';
 
-import { Colors } from '@/constants/theme';
+import { AppIcon } from '@/components/ui/app-icon';
+import { useTheme } from '@/hooks/use-theme';
 
 export default function AppTabs() {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const theme = useTheme();
 
   return (
-    <NativeTabs
-      backgroundColor={colors.background}
-      indicatorColor={colors.backgroundElement}
-      labelStyle={{ selected: { color: colors.text } }}>
-      <NativeTabs.Trigger name="index">
-        <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/home.png')}
-          renderingMode="template"
-        />
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="explore">
-        <NativeTabs.Trigger.Label>Explore</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/explore.png')}
-          renderingMode="template"
-        />
-      </NativeTabs.Trigger>
-    </NativeTabs>
+    <Tabs screenOptions={{
+      headerShown: false,
+      tabBarActiveTintColor: theme.primary,
+      tabBarInactiveTintColor: theme.textSecondary,
+      tabBarStyle: { backgroundColor: theme.backgroundElement, borderTopColor: theme.border },
+      tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
+      tabBarItemStyle: { paddingVertical: 4 },
+    }}>
+      <Tabs.Screen name="index" options={{ title: 'Map', tabBarIcon: ({ color }) => <AppIcon name="map" color={color} /> }} />
+      <Tabs.Screen name="trips" options={{ title: 'Trips', tabBarIcon: ({ color }) => <AppIcon name="trips" color={color} /> }} />
+      <Tabs.Screen name="diary" options={{ title: 'Diary', tabBarIcon: ({ color }) => <AppIcon name="diary" color={color} /> }} />
+      <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: ({ color }) => <AppIcon name="profile" color={color} /> }} />
+    </Tabs>
   );
 }
