@@ -1,5 +1,5 @@
 /**
- * The signed-in user's real trips, trip plans, diary entries and countries, loaded from the Node API.
+ * The signed-in user's real trips, trip plans, expenses, diary entries and countries, loaded from the Node API.
  *
  * Screens read from one shared cache, so a trip created in the form appears in the list
  * and detail screens without reloading. Every change is sent to the API first; the cache
@@ -11,8 +11,9 @@ import { useAuth } from '@/providers/auth-provider';
 import * as activitiesApi from '@/services/activities';
 import * as countriesApi from '@/services/countries';
 import * as diaryApi from '@/services/diary';
+import * as expensesApi from '@/services/expenses';
 import * as tripsApi from '@/services/trips';
-import type { DiaryEntry, Trip, TripActivity, UserCountry } from '@/types/models';
+import type { DiaryEntry, Expense, Trip, TripActivity, UserCountry } from '@/types/models';
 
 export type LoadStatus = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -23,10 +24,11 @@ export type TravelState = {
   trips: Trip[];
   entries: DiaryEntry[];
   activities: TripActivity[];
+  expenses: Expense[];
   countries: UserCountry[];
 };
 
-const EMPTY: TravelState = { userId: null, status: 'idle', error: null, trips: [], entries: [], activities: [], countries: [] };
+const EMPTY: TravelState = { userId: null, status: 'idle', error: null, trips: [], entries: [], activities: [], expenses: [], countries: [] };
 const PAGE_SIZE = 100; // the API's maximum page size
 
 let state = EMPTY;
@@ -63,14 +65,15 @@ export async function loadTravelData(userId: string) {
   const id = ++loadId;
   setState((s) => ({ ...(s.userId === userId ? s : EMPTY), userId, status: 'loading', error: null }));
   try {
-    const [trips, entries, activities, countries] = await Promise.all([
+    const [trips, entries, activities, expenses, countries] = await Promise.all([
       loadAll((limit, offset) => tripsApi.listTrips(limit, offset)),
       loadAll((limit, offset) => diaryApi.listDiaryEntries(undefined, limit, offset)),
       loadAll((limit, offset) => activitiesApi.listActivities(limit, offset)),
+      loadAll((limit, offset) => expensesApi.listExpenses(limit, offset)),
       countriesApi.listCountries(),
     ]);
     if (id !== loadId) return; // a newer load (or sign-out) replaced this one
-    setState((s) => ({ ...s, status: 'ready', trips, entries, activities, countries }));
+    setState((s) => ({ ...s, status: 'ready', trips, entries, activities, expenses, countries }));
   } catch (cause) {
     if (id !== loadId) return;
     setState((s) => ({ ...s, status: 'error', error: errorMessage(cause) }));
@@ -115,12 +118,13 @@ export const tripActions = {
   },
   async remove(id: string) {
     await tripsApi.deleteTrip(id);
-    // Entries and plan items need a trip, so a successful delete means the database removed them too.
+    // Entries, plan items and expenses need a trip, so a successful delete means the database removed them too.
     setState((s) => ({
       ...s,
       trips: s.trips.filter((t) => t.id !== id),
       entries: s.entries.filter((e) => e.trip_id !== id),
       activities: s.activities.filter((a) => a.trip_id !== id),
+      expenses: s.expenses.filter((e) => e.trip_id !== id),
     }));
   },
 };
@@ -176,5 +180,22 @@ export const activityActions = {
   async remove(id: string) {
     await activitiesApi.deleteActivity(id);
     setState((s) => ({ ...s, activities: s.activities.filter((a) => a.id !== id) }));
+  },
+};
+
+export const expenseActions = {
+  async create(input: expensesApi.CreateExpense) {
+    const expense = await expensesApi.createExpense(input);
+    setState((s) => ({ ...s, expenses: [expense, ...s.expenses] }));
+    return expense;
+  },
+  async update(id: string, input: Partial<expensesApi.ExpenseInput>) {
+    const expense = await expensesApi.updateExpense(id, input);
+    setState((s) => ({ ...s, expenses: s.expenses.map((e) => (e.id === id ? expense : e)) }));
+    return expense;
+  },
+  async remove(id: string) {
+    await expensesApi.deleteExpense(id);
+    setState((s) => ({ ...s, expenses: s.expenses.filter((e) => e.id !== id) }));
   },
 };

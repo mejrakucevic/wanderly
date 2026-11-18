@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { EntryCard } from '@/components/diary/entry-card';
 import { ThemedText } from '@/components/themed-text';
@@ -12,12 +12,10 @@ import { DataStatus } from '@/components/ui/data-status';
 import { EmptyState } from '@/components/ui/empty-state';
 import { IconButton } from '@/components/ui/icon-button';
 import { ProgressBar } from '@/components/ui/progress-bar';
-import { SampleBadge } from '@/components/ui/sample-badge';
 import { Screen } from '@/components/ui/screen';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { PLAN_CATEGORIES, planItemIcon, type PlanCategory } from '@/constants/plan';
 import { Spacing } from '@/constants/theme';
-import { sampleActions, useSampleData } from '@/data/sample-store';
 import { useTravelData } from '@/data/travel-store';
 import { useTheme } from '@/hooks/use-theme';
 import type { Expense, Trip, TripActivity } from '@/types/models';
@@ -26,13 +24,12 @@ import { daysBetween, formatDate, formatDateRange, formatMoney, tripCountdown } 
 type Tab = 'plan' | 'expenses' | 'diary';
 const TABS = [
   { value: 'plan', label: 'Plan' },
-  { value: 'expenses', label: 'Expenses' },
+  { value: 'expenses', label: 'Spent' },
   { value: 'diary', label: 'Diary' },
 ] as const;
 
 export default function TripDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const sample = useSampleData();
   const travel = useTravelData();
   const [tab, setTab] = useState<Tab>('plan');
   const trip = travel.trips.find((t) => t.id === id);
@@ -52,7 +49,7 @@ export default function TripDetailScreen() {
     );
   }
 
-  const expenses = sample.expenses.filter((e) => e.trip_id === trip.id);
+  const expenses = travel.expenses.filter((e) => e.trip_id === trip.id);
   const spent = expenses.reduce((sum, e) => sum + e.amount, 0);
   const activities = travel.activities.filter((a) => a.trip_id === trip.id);
   const planned = activities.reduce((sum, a) => sum + (a.cost ?? 0), 0);
@@ -120,11 +117,17 @@ function BudgetCard({ trip, planned, spent }: { trip: Trip; planned: number; spe
 
 function PlanTab({ trip, activities }: { trip: Trip; activities: TripActivity[] }) {
   const theme = useTheme();
+  const planned = activities.reduce((sum, a) => sum + (a.cost ?? 0), 0);
   const sorted = [...activities].sort((a, b) =>
     a.activity_date.localeCompare(b.activity_date) || (a.start_time ?? '').localeCompare(b.start_time ?? '') || a.sort_order - b.sort_order);
 
   return (
     <View style={styles.list}>
+      {planned > 0 ? (
+        <ThemedText type="small" themeColor="textSecondary">
+          Planned total: <ThemedText type="smallBold">{formatMoney(planned, trip.currency)}</ThemedText>
+        </ThemedText>
+      ) : null}
       {PLAN_CATEGORIES.map((category) => (
         <PlanSection key={category.id} trip={trip} category={category} items={sorted.filter((a) => a.category === category.id)} />
       ))}
@@ -201,17 +204,12 @@ function ExpensesTab({ trip, expenses }: { trip: Trip; expenses: Expense[] }) {
   expenses.forEach((e) => totals.set(e.category, (totals.get(e.category) ?? 0) + e.amount));
   const sorted = [...expenses].sort((a, b) => b.expense_date.localeCompare(a.expense_date));
 
-  function confirmDelete(expense: Expense) {
-    Alert.alert('Delete expense?', `“${expense.title}” will be removed.`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => sampleActions.deleteExpense(expense.id) },
-    ]);
-  }
-
   return (
     <View style={styles.list}>
-      <SampleBadge />
-      <ActionButton label="Add an expense" onPress={() => router.push({ pathname: '/expense-form', params: { tripId: trip.id } })} />
+      <ThemedText type="small" themeColor="textSecondary">
+        Log what you spend on the go: coffee, taxis, souvenirs. Prices in your plan already count as planned, so you don’t need to add them here.
+      </ThemedText>
+      <ActionButton label="Log spending" onPress={() => router.push({ pathname: '/expense-form', params: { tripId: trip.id } })} />
       {totals.size > 0 ? (
         <View style={styles.categories}>
           {[...totals].sort((a, b) => b[1] - a[1]).map(([category, total]) => (
@@ -229,8 +227,8 @@ function ExpensesTab({ trip, expenses }: { trip: Trip; expenses: Expense[] }) {
               key={expense.id}
               accessibilityRole="button"
               accessibilityLabel={`${expense.title}, ${formatMoney(expense.amount, trip.currency)}`}
-              accessibilityHint="Opens delete options"
-              onPress={() => confirmDelete(expense)}
+              accessibilityHint="Opens this spending to edit or delete it"
+              onPress={() => router.push({ pathname: '/expense-form', params: { id: expense.id } })}
               style={[styles.expense, index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border }]}>
               <View style={styles.flex}>
                 <ThemedText>{expense.title}</ThemedText>
@@ -243,7 +241,7 @@ function ExpensesTab({ trip, expenses }: { trip: Trip; expenses: Expense[] }) {
           ))}
         </Card>
       ) : (
-        <EmptyState icon="wallet" title="No expenses yet" description="Log what you spend to keep an eye on your budget." />
+        <EmptyState icon="wallet" title="Nothing spent yet" description="Everything you log here is added to your planned costs, so you always see what’s left of your budget." />
       )}
     </View>
   );
